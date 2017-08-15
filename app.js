@@ -11,6 +11,7 @@ if(process.env.environment != "AWS") {
 }
 let oldIP = "";
 let newIP = "";
+let match = 0;
 
 let transporter = nodemailer.createTransport({
     SES: new AWS.SES({
@@ -20,24 +21,23 @@ let transporter = nodemailer.createTransport({
 
 function getDNS(site) {
   return new Promise((resolve, reject) => {
-    dns.lookup(site, (err, address, family) => {
+    dns.resolve4(site, (err, addresses) => {
       if(err) {
         reject(err);
       }
       else {
-        resolve(address);
+        resolve(JSON.stringify(addresses));
       }
     });
   });
 }
 
-//STUB METHOD: notify
-function notify() {
+function notify(oldAddresses, newAddresses) {
   transporter.sendMail({
     from: "no-reply@iqity.net",
     to: "brad.adair@iq-ity.com",
     subject: site + " IP address changed",
-    text: "The IP address for " + site + " has changed. The old IP address was: " + oldIP + " and the new IP address is: " + newIP + ".",
+    text: "The IP address for " + site + " has changed. The old IP address(es) were: " + oldAddresses + " and the new IP address(es) are: " + newAddresses + ".",
   });
 }
 
@@ -75,25 +75,27 @@ fs.access("ip.txt", (err) => {
   }
 });
 //Get the current IP address
-getDNS(site).then((address) => {
-  newIP = address;
-  //If there was an IP loaded from file, compare them
+getDNS(site).then((addresses) => {
+  let currentAddresses = JSON.parse(addresses);
+  let oldAddresses = [];
   if(oldIP != "") {
-    if(oldIP === newIP) {
-      //they match, no need to go further
-      console.log("IPs match");
-      process.exit(0);
-    }
-    else {
-      //They don't match, call notify function
-      notify();
-      //Then save the new IP
-      saveIP(newIP);
-    }
+     oldAddresses = oldIP.split(",");
   }
   else {
-    //If there was not, save IP
-    saveIP(newIP);
+     oldAddresses = [];
+  }
+  for(let i = 0; i < currentAddresses.length; i++) {
+    if(currentAddresses[i] === oldAddresses[0] || currentAddresses[i] === oldAddresses[1]) {
+      console.log("Address matches");
+      match = 1;
+    }
+    else {
+      match = 0;
+    }
+  }
+  if(!match) {
+    saveIP(currentAddresses);
+    notify(oldAddresses, currentAddresses);
   }
 }).catch((err) => {
   console.log(err);
