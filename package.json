@@ -1,0 +1,15 @@
+{
+  "name": "ip_monitor",
+  "version": "0.0.1",
+  "description": "Monitors the IP of a given website and alerts if the IP address changes",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Brad Adair <brad@adair.tech>",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.98.0",
+    "nodemailer": "^4.0.1"
+  }
+}
