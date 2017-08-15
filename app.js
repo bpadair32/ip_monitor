@@ -9,96 +9,101 @@ if(process.env.environment != "AWS") {
   const myCredentials = new AWS.SharedIniFileCredentials({profile: 'prod'});
   AWS.config.update({credentials: myCredentials});
 }
-let oldIP = "";
-let newIP = "";
-let match = 0;
-
 let transporter = nodemailer.createTransport({
     SES: new AWS.SES({
         apiVersion: '2010-12-01'
     })
 });
 
-function getDNS(site) {
+function getCurrentIps(host) {
   return new Promise((resolve, reject) => {
-    dns.resolve4(site, (err, addresses) => {
+    dns.resolve4(host, (err, addresses) => {
       if(err) {
         reject(err);
       }
       else {
-        resolve(JSON.stringify(addresses));
+        resolve(addresses);
       }
     });
   });
 }
 
-function notify(oldAddresses, newAddresses) {
+function getPrevIps() {
+  return new Promise((resolve, reject) => {
+    fs.access("ip.txt", (err) => {
+      if(!err) {
+        fs.readFile("ip.txt", "utf8", (err, data) => {
+          if(err) {
+            reject(err);
+          }
+          else {
+            resolve(data);
+          }
+        });
+      }
+    });
+  });
+}
+
+function compareIps(old, current) {
+  let match = false;
+  for(let i = 0; i < current.length; i++) {
+    if(old.includes(current[i])) {
+      match = true;
+    }
+    else {
+      match = false;
+    }
+  }
+  return match;
+}
+
+function saveIps(ips) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile("ip.txt", ips, "utf8", (err) => {
+      if(err) {
+        reject(err);
+      }
+      else {
+        resolve();
+      }
+    });
+  });
+}
+
+function notify(old, current) {
   transporter.sendMail({
     from: "no-reply@iqity.net",
     to: "brad.adair@iq-ity.com",
-    subject: site + " IP address changed",
-    text: "The IP address for " + site + " has changed. The old IP address(es) were: " + oldAddresses + " and the new IP address(es) are: " + newAddresses + ".",
-  });
-}
-
-function saveIP(ip) {
-  fs.writeFile("ip.txt", ip, "utf8", (err) => {
+    subject: site + " IP address change",
+    text: "The IP address for " + site + " has changed. The old address(es) were " + old + ". The new address(es) are " + current + ".",
+  }, (err, info) => {
     if(err) {
-      console.log("Error writing to file, exiting");
-      process.exit(1);
-    }
-    else {
-      console.log("Wrote file successfully");
+      console.log(err);
     }
   });
 }
 
-
-//Check if there is an IP file and load the ip from it if there is
-fs.access("ip.txt", (err) => {
-  if(err) {
-    console.log("Error accessing file. Assuming new file needed");
+/* jshint ignore:start */
+async function main() {
+  let currentIps = await getCurrentIps(site);
+  console.log("Current IPs", currentIps);
+  let prevIps = await getPrevIps();
+  prevIps = prevIps.split(",");
+  console.log("Previous IPs", prevIps);
+  if(compareIps(prevIps, currentIps)) {
+    console.log("Match");
   }
-
   else {
-    fs.readFile("ip.txt", "utf8", (err, data) => {
-      if(err) {
-        console.log("File exists but cannot be read. Exiting");
-        process.exit(1);
-      }
-
-      else {
-        oldIP = data;
-        console.log(oldIP);
-      }
+    console.log("No match");
+    saveIps(currentIps).catch((err) => {
+      console.log(err);
     });
+    notify(prevIps, currentIps);
   }
-});
+}
+/* jshint ignore:end */
 
-//Get the current IP address
-getDNS(site).then((addresses) => {
-  let currentAddresses = JSON.parse(addresses);
-  let oldAddresses = [];
-  currentAddresses.sort();
-  if(oldIP != "") {
-     oldAddresses = oldIP.split(",");
-  }
-  else {
-     oldAddresses = [];
-  }
-  oldAddresses.sort();
-  if(currentAddresses[0] == oldAddresses[0] && currentAddresses[1] == oldAddresses[1]) {
-    match = 1;
-  }
-
-  else {
-    match = 0;
-  }
-
-  if(!match) {
-    saveIP(currentAddresses);
-    notify(oldAddresses, currentAddresses);
-  }
-}).catch((err) => {
+main().catch((err) => {
   console.log(err);
 });
