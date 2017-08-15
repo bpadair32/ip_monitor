@@ -74,25 +74,27 @@ fs.access("ip.txt", (err) => {
     });
   }
 });
+
 //Get the current IP address
 getDNS(site).then((addresses) => {
   let currentAddresses = JSON.parse(addresses);
   let oldAddresses = [];
+  currentAddresses.sort();
   if(oldIP != "") {
      oldAddresses = oldIP.split(",");
   }
   else {
      oldAddresses = [];
   }
-  for(let i = 0; i < currentAddresses.length; i++) {
-    if(currentAddresses[i] === oldAddresses[0] || currentAddresses[i] === oldAddresses[1]) {
-      console.log("Address matches");
-      match = 1;
-    }
-    else {
-      match = 0;
-    }
+  oldAddresses.sort();
+  if(currentAddresses[0] == oldAddresses[0] && currentAddresses[1] == oldAddresses[1]) {
+    match = 1;
   }
+
+  else {
+    match = 0;
+  }
+
   if(!match) {
     saveIP(currentAddresses);
     notify(oldAddresses, currentAddresses);
