@@ -74,7 +74,7 @@ function saveIps(ips) {
 function notify(old, current) {
   transporter.sendMail({
     from: "no-reply@iqity.net",
-    to: "brad.adair@iq-ity.com",
+    to: "brad.adair@iq-ity.com, support@iq-ity.com",
     subject: site + " IP address change",
     text: "The IP address for " + site + " has changed. The old address(es) were " + old + ". The new address(es) are " + current + ".",
   }, (err, info) => {
