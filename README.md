@@ -1,4 +1,4 @@
-#IP-Monitor
+# IP-Monitor
 This is a simple node script that is meant to be run as a cron job. It monitors
 a site and tracks changes to its IP address.
 
